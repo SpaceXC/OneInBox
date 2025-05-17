@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import AV from 'leancloud-storage/live-query';
+
+const router = useRouter();
+const route = useRoute();
 
 const username = ref("")
 const password = ref("")
@@ -23,7 +27,13 @@ function login() {
         return
     }
     AV.User.logIn(username.value, password.value).then(() => {
-        window.location.reload()
+        const redirect = route.query.redirect
+        if (redirect) {
+            router.push(redirect as string)
+        }
+        else {
+            router.push('/')
+        }
     }).catch((error) => {
         errorUsername.value = true
         errorPassword.value = true

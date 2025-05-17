@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { Marked } from 'marked';
+import AV from 'leancloud-storage';
+import PostalMime from 'postal-mime'
 import { useRoute } from 'vue-router';
 import hljs from 'highlight.js'
 import { markedHighlight } from "marked-highlight";
@@ -20,16 +22,18 @@ const isLoading = ref(false)
 const success = ref(false)
 const errorMessage = ref("")
 
-onMounted(() => {
-    if (route.query.to) {
-        to.value = route.query.to as string
-    }
-    if (route.query.subject) {
-        subject.value = route.query.subject as string
-    }
-    if (route.query.content) {
-        console.log(route.query.content)
-        bodyMd.value = decodeURIComponent(route.query.content as string)
+onMounted(async () => {
+    if (route.query.replyTo) {
+        const lcObject = AV.Object.createWithoutData('Emails', route.query.replyTo as string)
+        lcObject.fetch().then(async (email) => {
+            const rawEmail = email.get("rawEmail")
+            const parsedEmail = await PostalMime.parse(rawEmail)
+            bodyMd.value = `> ${parsedEmail.html}\n\n`
+            to.value = parsedEmail.from.address as string
+            subject.value = `Re: ${parsedEmail.subject}`
+        }).catch((error) => {
+            console.error(error);
+        })
     }
 })
 
@@ -76,7 +80,7 @@ async function sendEmail() {
 </script>
 
 <template>
-    <div class="w-full h-screen flex overflow-hidden" v-if="!isLoading && !success">
+    <div class="h-screen flex overflow-hidden" v-if="!isLoading && !success">
         <div class="flex-1 bg-gray-50 p4 overflow-auto">
             <div class="max-w-3xl mx-auto bg-white shadow-md rounded-xl p4">
                 <h1 class="text-xl font-bold mb2">写邮件</h1>

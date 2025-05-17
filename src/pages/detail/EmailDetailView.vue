@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, onUnmounted, useTemplateRef, watch, nextTick } from 'vue'
-import { type Email } from 'postal-mime'
+import PostalMime, { type Email } from 'postal-mime'
 import { bufferToBlobUrl } from '../../utils/ArrayBufferToBlobUrl'
 import dayjs from 'dayjs'
 import { getAddressDesc } from '../../utils/GetAddressDesc'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import AV from 'leancloud-storage'
 
-const props = defineProps<{
-    email: Email | undefined
-}>()
+const email = ref<Email | undefined>(undefined)
 
 const router = useRouter()
+const route = useRoute()
 
 const emit = defineEmits(['onBack'])
 
@@ -34,21 +34,26 @@ onUnmounted(() => {
     })
 });
 
-watch(() => props.email, async (email) => {
-    console.log(email)
-    if (email == undefined) {
-        isEmpty.value = true
-    }
-    else {
-        console.log("加载邮件", email)
-        isEmpty.value = false
-        loadEmail(email)
-    }
+watch(() => route.path, async (path) => {
+    const id = path.split('/').pop()
+    console.log(id)
+    fetchEmail(id as string)
 }, { immediate: true })
 
 function goBack() {
-    console.log("返回")
     emit('onBack')
+    router.replace('/inbox')
+}
+
+async function fetchEmail(emailId: string) {
+    const lcObject = AV.Object.createWithoutData('Emails', emailId)
+    const emailObject = await lcObject.fetch()
+    const rawEmail = emailObject.get("rawEmail")
+    const parsedEmail = await PostalMime.parse(rawEmail)
+
+    email.value = parsedEmail
+    
+    loadEmail(parsedEmail)
 }
 
 async function loadEmail(parsedEmail: Email) {
@@ -142,11 +147,8 @@ function injectEmailHtmlIntoShadow(html: string) {
 }
 
 function reply() {
-
-    const to = encodeURIComponent(props.email?.from.address ?? '')
-    const content = encodeURIComponent(html.value ?? '')
-    const subject = encodeURIComponent('RE:' + (props.email?.subject ?? ''))
-    router.push(`/compose?to=${to}&subject=${subject}&content=${content}`)
+    const id = route.path.split('/').pop()
+    router.push(`/compose?replyTo=${id}`)
 }
 
 function updateIframeHeight(iframe: HTMLIFrameElement) {
@@ -167,7 +169,7 @@ function updateIframeHeight(iframe: HTMLIFrameElement) {
 </script>
 
 <template>
-    <div class="w-full h-full">
+    <div class="flex-1">
         <div v-if="!isEmpty">
             <!-- 发件人信息 -->
             <div class="flex items-center px6 pt6">
@@ -184,8 +186,8 @@ function updateIframeHeight(iframe: HTMLIFrameElement) {
                         <p class="m0 font-380 text-1.3rem">{{ email?.from.address }}</p>
                     </div>
                 </div>
-                <div class="flex">
-                    <div class="flex-[1]"></div>
+                <div class="flex flex-1">
+                    <div class="flex-1"></div>
                     <svg width="18" height="16" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg" @click="reply()">
                         <path
                             d="M1.5 6.5C1.5 6.5 9.75 6.5 12 6.5C18 6.5 18 14.75 12 14.75M1.5 6.5L6.75 1.25M1.5 6.5L6.75 11.75"
@@ -223,12 +225,7 @@ function updateIframeHeight(iframe: HTMLIFrameElement) {
                 </div>
             </div>
         </div>
-        <div class="flex flex-col items-center justify-center h-full" v-else>
-            <div class="flex flex-col items-center">
-                <img src="/src/assets/empty.svg" class="w-4/5">
-                <p class="m6 font-380 text-1.2rem">还没有打开任何邮件哦</p>
-            </div>
-        </div>
+        
     </div>
     <!-- <div class="bg-gray-100 min-h-screen p-6">
         <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
