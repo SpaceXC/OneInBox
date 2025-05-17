@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Marked } from 'marked';
 import AV from 'leancloud-storage';
 import PostalMime from 'postal-mime'
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import hljs from 'highlight.js'
 import { markedHighlight } from "marked-highlight";
 import 'highlight.js/styles/idea.css'
@@ -11,6 +11,7 @@ import axios from 'axios';
 
 
 const route = useRoute()
+const router = useRouter()
 
 const showingMdCode = ref(true)
 const from = ref("XC")
@@ -70,6 +71,7 @@ async function sendEmail() {
         console.log(response.data);
         success.value = true
         isLoading.value = false
+        router.push('/inbox')
     }).catch((error) => {
         console.error(error);
         errorMessage.value = error
@@ -80,67 +82,44 @@ async function sendEmail() {
 </script>
 
 <template>
-    <div class="h-screen flex overflow-hidden" v-if="!isLoading && !success">
-        <div class="flex-1 bg-gray-50 p4 overflow-auto">
-            <div class="max-w-3xl mx-auto bg-white shadow-md rounded-xl p4">
-                <h1 class="text-xl font-bold mb2">写邮件</h1>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">发件人</label>
-                        <input v-model="from" type="text" class="w-full border rounded py-2" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">收件人</label>
-                        <input v-model="to" type="text" class="w-full border rounded py-2" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium mb-1">主题</label>
-                        <input v-model="subject" type="text" class="w-full border rounded py-2" />
-                    </div>
-
-
-                    <div>
-                        <div class="flex items-center"><label class="block text-sm font-medium mb-1">正文</label>
-                            <button
-                                class="bg-light-blue text-white px-4 py-2 rounded border-0 shadow hover:shadow-lg transition-all m-3"
-                                @click="togglePreview()">预览</button>
-                        </div>
-                        <textarea v-if="showingMdCode" v-model="bodyMd"
-                            class="w-full border rounded py-2 min-h-40 resize-y"></textarea>
-                        <div v-if="!showingMdCode" v-html="bodyHtml"></div>
-                    </div>
-
-                    <div class="flex flex-col justify-end gap-2">
-                        <button
-                            class="bg-light-blue text-white px-4 py-2 rounded border-0 shadow hover:shadow-lg transition-all w-auto self-end"
-                            @click="sendEmail()">发送</button>
-                        <p class="text-#FF0000 self-end">{{ errorMessage }}</p>
-                    </div>
-
+    <div class="flex h-screen flex-col">
+        <div class="flex items-center px6 pt8">
+            <span class="material-symbols-rounded text-1.2rem" @click="router.back()">
+                arrow_back_ios_new
+            </span>
+            <p class="m0 font-380 text-1.3rem ps-3.5">新邮件</p>
+            <div class="flex flex-1">
+                <div class="flex-1"></div>
+                <div class="flex items-center bg-#E5E6FF px-4 py-3 rounded-xl" @click="sendEmail()">
+                    <svg class="size-1.3rem" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M4.49991 9L2.45166 2.34375C7.35131 3.76875 11.9717 6.01984 16.1137 9C11.9719 11.9801 7.3518 14.2312 2.45241 15.6562L4.49991 9ZM4.49991 9H10.1249"
+                            stroke="#4248F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p class="text-#4248F5 font-380 text-1.1rem m0">发送</p>
                 </div>
             </div>
         </div>
-    </div>
-    <div v-if="isLoading" class="w-full h-screen flex overflow-hidden">
-        <div class="flex-1 bg-gray-50 p4 overflow-auto">
-            <div class="max-w-3xl mx-auto bg-white shadow-md rounded-xl p4">
-                <h1 class="text-xl font-bold mb2">发送中...</h1>
+
+        <div class="flex flex-col m-6 flex-1">
+            <div class="space-y-5">
+                <div class="flex items-center">
+                    <p class="text-#4A4A4A font-380 bg-#F4F4F4 m0 px-3 py-2 rounded-0.4rem me-2">收件人</p>
+                    <input v-model="to" type="text"
+                        class="flex-1 border-0 box-border focus:outline-none text-black font-380 text-1.1rem"
+                        placeholder="收件人" />
+                </div>
+                <div class="flex items-center">
+                    <p class="text-#4A4A4A font-380 bg-#F4F4F4 m0 px-3 py-2 rounded-0.4rem me-2">主题</p>
+                    <input v-model="subject" type="text"
+                        class="flex-1 border-0 box-border focus:outline-none text-black font-380 text-1.1rem"
+                        placeholder="主题" />
+                </div>
             </div>
-        </div>
-    </div>
-    <div v-if="success && !isLoading" class="w-full h-screen flex overflow-hidden">
-        <div class="flex-1 bg-gray-50 p4 overflow-auto">
-            <div class="max-w-3xl mx-auto bg-white shadow-md rounded-xl p4">
-                <h1 class="text-xl font-bold mb2">发送成功</h1>
-                <p>邮件已发送至{{ to }}</p>
-                <RouterLink to="/">
-                    <button
-                        class="bg-light-blue text-white px-4 py-2 rounded border-0 shadow hover:shadow-lg transition-all"
-                        @click="success = false">返回主页</button>
-                </RouterLink>
-            </div>
+
+            <div class="h-0.05rem bg-#E3E3E3 my-6"></div>
+            
+            <textarea v-model="bodyMd" class="flex-1 w-full border-none resize-none outline-none text-1.1rem" style="font-family: MiSans;"></textarea>
         </div>
     </div>
 </template>
