@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Marked } from 'marked';
 import AV from 'leancloud-storage';
 import PostalMime from 'postal-mime'
@@ -13,7 +13,7 @@ import axios from 'axios';
 const route = useRoute()
 const router = useRouter()
 
-const showingMdCode = ref(true)
+// const showingMdCode = ref(true)
 const from = ref("XC")
 const to = ref("")
 const subject = ref("")
@@ -36,6 +36,17 @@ onMounted(async () => {
             console.error(error);
         })
     }
+    else {
+        to.value = localStorage.getItem("to") ?? ""
+        subject.value = localStorage.getItem("subject") ?? ""
+        bodyMd.value = localStorage.getItem("bodyMd") ?? ""
+    }
+})
+
+watch([to, subject, bodyMd], () => {
+    localStorage.setItem("to", to.value)
+    localStorage.setItem("subject", subject.value)
+    localStorage.setItem("bodyMd", bodyMd.value)
 })
 
 const marked = new Marked(
@@ -49,15 +60,19 @@ const marked = new Marked(
     })
 );
 
-const bodyHtml = computed(() => {
-    return marked.parse(bodyMd.value)
-})
+// const bodyHtml = computed(() => {
+//     return marked.parse(bodyMd.value)
+// })
 
-function togglePreview() {
-    showingMdCode.value = !showingMdCode.value
-}
+// function togglePreview() {
+//     showingMdCode.value = !showingMdCode.value
+// }
 
 async function sendEmail() {
+    if (to.value === "" || subject.value === "" || bodyMd.value === "") {
+        return
+    }
+
     isLoading.value = true
 
     const formData = new FormData();
@@ -68,6 +83,9 @@ async function sendEmail() {
     formData.append("html", html);
 
     axios.post("https://resend.spacexc.net/api/send", formData).then((response) => {
+        localStorage.removeItem("to")
+        localStorage.removeItem("subject")  
+        localStorage.removeItem("bodyMd")
         console.log(response.data);
         success.value = true
         isLoading.value = false
@@ -88,17 +106,26 @@ async function sendEmail() {
                 arrow_back_ios_new
             </span>
             <p class="m0 font-380 text-1.3rem ps-3.5">新邮件</p>
+
             <div class="flex flex-1">
                 <div class="flex-1"></div>
-                <div class="flex items-center bg-#E5E6FF px-4 py-3 rounded-xl" @click="sendEmail()">
-                    <svg class="size-1.3rem" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M4.49991 9L2.45166 2.34375C7.35131 3.76875 11.9717 6.01984 16.1137 9C11.9719 11.9801 7.3518 14.2312 2.45241 15.6562L4.49991 9ZM4.49991 9H10.1249"
-                            stroke="#4248F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <p class="text-#4248F5 font-380 text-1.1rem m0">发送</p>
-                </div>
+                <Transition name="slide-fade" mode="out-in">
+                    <div class="flex items-center bg-#E5E6FF px-6 py-3 rounded-xl" @click="sendEmail()"
+                        v-if="!isLoading">
+                        <svg class="size-1.3rem" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M4.49991 9L2.45166 2.34375C7.35131 3.76875 11.9717 6.01984 16.1137 9C11.9719 11.9801 7.3518 14.2312 2.45241 15.6562L4.49991 9ZM4.49991 9H10.1249"
+                                stroke="#4248F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <p class="text-#4248F5 font-380 text-1.1rem m0 ms-2">发送</p>
+                    </div>
+                    <md-circular-progress indeterminate
+                        style="--md-sys-color-primary: #064BDD; --md-circular-progress-active-indicator-width: 6"
+                        class="size-2rem m2 me-3" v-else></md-circular-progress>
+                </Transition>
             </div>
+
+
         </div>
 
         <div class="flex flex-col m-6 flex-1">
@@ -118,8 +145,31 @@ async function sendEmail() {
             </div>
 
             <div class="h-0.05rem bg-#E3E3E3 my-6"></div>
-            
-            <textarea v-model="bodyMd" class="flex-1 w-full border-none resize-none outline-none text-1.1rem" style="font-family: MiSans;"></textarea>
+
+            <textarea v-model="bodyMd" class="flex-1 w-full border-none resize-none outline-none text-1.1rem"
+                style="font-family: MiSans;" placeholder="Markdown goes here"></textarea>
         </div>
     </div>
 </template>
+
+<style scoped>
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+.slide-fade-leave-from {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.slide-fade-leave-to {
+  transform: translateX(-20px);
+  opacity: 0;
+}
+</style>

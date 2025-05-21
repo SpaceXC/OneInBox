@@ -6,11 +6,14 @@ import dayjs from 'dayjs'
 import { getAddressDesc } from '../../utils/GetAddressDesc'
 import { useRouter, useRoute } from 'vue-router'
 import AV from 'leancloud-storage'
+import { useEmailStore } from '../../stores/emailStore'
 
 const email = ref<Email | undefined>(undefined)
 
 const router = useRouter()
 const route = useRoute()
+
+const store = useEmailStore()
 
 const emit = defineEmits(['onBack'])
 
@@ -33,8 +36,8 @@ onUnmounted(() => {
 });
 
 onMounted(() => {
-  const id = route.path.split('/').pop()
-  fetchEmail(id as string)
+    const id = route.path.split('/').pop()
+    fetchEmail(id as string)
 })
 
 watch(() => route.path, async (path) => {
@@ -55,7 +58,7 @@ async function fetchEmail(emailId: string) {
     const parsedEmail = await PostalMime.parse(rawEmail)
 
     email.value = parsedEmail
-
+    store.markAsRead(emailId)
     loadEmail(parsedEmail)
 }
 
@@ -175,57 +178,60 @@ function updateIframeHeight(iframe: HTMLIFrameElement) {
     <div>
         <Transition>
             <div v-if="email">
-                <!-- 发件人信息 -->
-                <div class="flex items-center px6 pt6">
-                    <span class="material-symbols-rounded text-1.2rem" @click="goBack()">
-                        arrow_back_ios_new
-                    </span>
-                    <div class="flex px-4 items-center">
-                        <img src="/src/assets/defaultAvatar.svg" class="size-2.5rem">
-                        <div class="px-4" v-if="email?.from.name">
-                            <p class="m0 font-380 text-1.3rem">{{ email?.from.name }}</p>
-                            <p class="m0 font-330 text-0.8rem text-#7d7d7d">{{ email?.from.address }}</p>
+                <div>
+                    <!-- 发件人信息 -->
+                    <div class="flex items-center px6 pt6">
+                        <span class="material-symbols-rounded text-1.2rem" @click="goBack()">
+                            arrow_back_ios_new
+                        </span>
+                        <div class="flex px-4 items-center">
+                            <img src="/src/assets/defaultAvatar.svg" class="size-2.5rem">
+                            <div class="px-4" v-if="email?.from.name">
+                                <p class="m0 font-380 text-1.3rem">{{ email?.from.name }}</p>
+                                <p class="m0 font-330 text-0.8rem text-#7d7d7d">{{ email?.from.address }}</p>
+                            </div>
+                            <div class="px-4" v-else>
+                                <p class="m0 font-380 text-1.3rem">{{ email?.from.address }}</p>
+                            </div>
                         </div>
-                        <div class="px-4" v-else>
-                            <p class="m0 font-380 text-1.3rem">{{ email?.from.address }}</p>
+                        <div class="flex flex-1">
+                            <div class="flex-1"></div>
+                            <svg width="18" height="16" viewBox="0 0 18 16" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" @click="reply()">
+                                <path
+                                    d="M1.5 6.5C1.5 6.5 9.75 6.5 12 6.5C18 6.5 18 14.75 12 14.75M1.5 6.5L6.75 1.25M1.5 6.5L6.75 11.75"
+                                    stroke="#064BDD" stroke-width="1.5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
                         </div>
                     </div>
-                    <div class="flex flex-1">
-                        <div class="flex-1"></div>
-                        <svg width="18" height="16" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg"
-                            @click="reply()">
-                            <path
-                                d="M1.5 6.5C1.5 6.5 9.75 6.5 12 6.5C18 6.5 18 14.75 12 14.75M1.5 6.5L6.75 1.25M1.5 6.5L6.75 11.75"
-                                stroke="#064BDD" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
+
+                    <!-- 邮件内容 -->
+                    <div class="px-6">
+                        <div class="mb-5">
+                            <p class="font-450 text-1.6rem mb-0">{{ email?.subject }}</p>
+                            <p class="font-330 text-0.875rem mt-2 text-#7D7D7D">
+                                Date: {{ dayjs(email?.date!!).format("YYYY-MM-DD HH:mm:ss") }} · To:
+                                {{email?.to?.map((to) =>
+                                    getAddressDesc(to)).join(', ')}}
+                            </p>
+                        </div>
+                        <div class="border-t border-t-solid border-t-#E9E9E9 my-3"></div>
+
+                        <div ref="shadowContainer" class="pt-2"></div>
                     </div>
-                </div>
+                    <div v-if="attachments.size > 0" class="mt-6">
+                        <h2 class="text-lg font-semibold mb-4">Attachments</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div v-for="attachment in attachments" :key="attachment[0]"
+                                class="p-4 border rounded-lg shadow-inner bg-gray-50">
+                                <p class="truncate font-medium text-gray-700">{{ attachment[0] }}</p>
 
-                <!-- 邮件内容 -->
-                <div class="px-6">
-                    <div class="mb-5">
-                        <p class="font-450 text-1.6rem mb-0">{{ email?.subject }}</p>
-                        <p class="font-330 text-0.875rem mt-2 text-#7D7D7D">
-                            Date:{{ dayjs(email?.date!!).format("YYYY-MM-DD HH:mm:ss") }} · To: {{email?.to?.map((to) =>
-                                getAddressDesc(to)).join(', ')}}
-                        </p>
-                    </div>
-                    <div class="border-t border-t-solid border-t-#E9E9E9 my-3"></div>
-
-                    <div ref="shadowContainer" class="pt-2"></div>
-                    <!-- <div v-html="html"></div> -->
-                </div>
-                <div v-if="attachments.size > 0" class="mt-6">
-                    <h2 class="text-lg font-semibold mb-4">Attachments</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div v-for="attachment in attachments" :key="attachment[0]"
-                            class="p-4 border rounded-lg shadow-inner bg-gray-50">
-                            <p class="truncate font-medium text-gray-700">{{ attachment[0] }}</p>
-
-                            <a :href="attachment[1]" target="_blank"
-                                class="mt-2 inline-block text-white no-underline bg-blue px-4 py-3 rounded-lg shadow hover:shadow-lg transition-all">
-                                Download
-                            </a>
+                                <a :href="attachment[1]" target="_blank"
+                                    class="mt-2 inline-block text-white no-underline bg-blue px-4 py-3 rounded-lg shadow hover:shadow-lg transition-all">
+                                    Download
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

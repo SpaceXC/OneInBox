@@ -17,7 +17,7 @@ const routes = [
   {
     path: '/inbox', component: InboxView, name: 'inbox', children: [
       { path: '/', component: EmptyView },
-      { path: ':id', component: EmailDetailView }
+      { path: ':id', component: EmailDetailView, name: 'email-detail' },
     ]
   },
   { path: '/auth', component: LoginView },
