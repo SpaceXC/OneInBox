@@ -58,11 +58,11 @@ onMounted(() => {
         </li>
         <div class="border-t border-t-solid border-t-#E9E9E9 m-3"></div>
         </li>
-        <div ref="loadingIndication" class="flex items-center justify-center px-3">
+        <div ref="loadingIndication" :class="`flex items-center justify-center px-3 ${store.emails.length == 0 ? 'opacity-0' : ''}`">
           <md-circular-progress indeterminate
             style="--md-sys-color-primary: #064BDD; --md-circular-progress-active-indicator-width: 6"
             class="size-2rem m2 me-3"></md-circular-progress>
-          <p class="font-305 text-1rem text-#064BDD me-3 w-full">加载中...</p>
+          <p :class="`font-305 text-1rem text-#064BDD me-3 w-full`">加载中...</p>
         </div>
         <div class="h-2"></div>
       </ul>

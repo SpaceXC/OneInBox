@@ -16,18 +16,28 @@ export const useEmailStore = defineStore('email', () => {
 
   // 按日期分组邮件并排序
   function groupByDate(emailEntries: [string, Email, boolean][]) {
-    const grouped: { date: string, emails: [string, Email, boolean][] }[] = []
+    const emailMap = new Map<string, [string, Email, boolean]>()
     emailEntries.forEach(([id, email, read]) => {
-      const rawDate = email.date
-      if (!rawDate) return
-      const date = dayjs(rawDate).format('YYYY-MM-DD')
+      if (!email.date) return
+      if (!emailMap.has(id)) {
+        emailMap.set(id, [id, email, read])
+      } else {
+        // 如果重复ID，保留已读状态为 true
+        const existing = emailMap.get(id)!
+        emailMap.set(id, [id, email, existing[2] && read])
+      }
+    })
+
+    const grouped: { date: string, emails: [string, Email, boolean][] }[] = []
+    for (const [id, email, read] of emailMap.values()) {
+      const date = dayjs(email.date).format('YYYY-MM-DD')
       let group = grouped.find(g => g.date === date)
       if (!group) {
         group = { date, emails: [] }
         grouped.push(group)
       }
       group.emails.push([id, email, read])
-    })
+    }
     grouped.sort((a, b) => b.date.localeCompare(a.date))
     return grouped
   }
